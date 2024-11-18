@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bh1ygo0qyrdna"]
 
-[ext_resource type="Texture2D" uid="uid://cqiisx1a7an1d" path="res://images/laser_02.png" id="1_v5fnd"]
+[ext_resource type="Texture2D" uid="uid://dm80c42smodgg" path="res://images/laser_02.png" id="1_v5fnd"]
 
 [node name="Sprite2D" type="Sprite2D"]
 rotation = -1.5708

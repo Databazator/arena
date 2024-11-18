@@ -87,18 +87,6 @@ unique_name_in_owner = true
 visible = false
 width = 3.0
 
-[node name="debug_vec" type="Line2D" parent="."]
-unique_name_in_owner = true
-z_index = 2
-width = 3.0
-default_color = Color(0.805271, 0.00180652, 0.109305, 1)
-
-[node name="debug_vec2" type="Line2D" parent="."]
-unique_name_in_owner = true
-z_index = 1
-width = 3.0
-default_color = Color(4.81308e-08, 0.600001, 0.246864, 1)
-
 [node name="ship" type="CharacterBody2D" parent="."]
 editor_description = "This is the ship."
 position = Vector2(700, 450)

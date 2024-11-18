@@ -62,19 +62,19 @@ The action() method must return an array containing three elements:
 At the top of agent.gd, a couple of useful global variables are defined:
 
 * `ship` is the Godot object representing the player's ship.  It is a `CharacterBody2D` which has many attributes.  The most useful of these are
-    - `ship.position` (Vector2): the ship's current position
-    - `ship.velocity` (Vector2): the ship's current velocity in pixels per second
-    - `ship.rotation` (float): the ship's rotation in radians, where 0 points rightward
-    - `ship.ACCEL` (int): a constant representing the ship's acceleration in pixels per second squared whenever it thrusts forward
-    - `ship.ROTATE_SPEED` (int): a constant representing the ship's rotational speed in radians per second whenever it rotates
-    - `ship.RADIUS` (int): a constant representing the radius of the ship's collision area in pixels
+	- `ship.position` (Vector2): the ship's current position
+	- `ship.velocity` (Vector2): the ship's current velocity in pixels per second
+	- `ship.rotation` (float): the ship's rotation in radians, where 0 points rightward
+	- `ship.ACCEL` (int): a constant representing the ship's acceleration in pixels per second squared whenever it thrusts forward
+	- `ship.ROTATE_SPEED` (int): a constant representing the ship's rotational speed in radians per second whenever it rotates
+	- `ship.RADIUS` (int): a constant representing the radius of the ship's collision area in pixels
 
   You __should not modify__ any of these ship attributes in your agent code.  The game will update them automatically based on the actions you return from the action() method.
 
 * `debug_path` is a `Line2D` object that can display a path consisting of a series of line segments.  If your agent calculates a path to follow, you can use `debug_path` to display it for debugging purposes.  To do so, call these methods:
 
-    - `debug_path.clear_points()`: clear all points in this path
-    - `debug_path.add_point(p: Vector2)`: add a point to the path
+	- `debug_path.clear_points()`: clear all points in this path
+	- `debug_path.add_point(p: Vector2)`: add a point to the path
 
   The path will only be visible when you set the Show Path property (see below).
 
