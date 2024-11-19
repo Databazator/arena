@@ -1,5 +1,4 @@
 extends CharacterBody2D
-class_name Ship
 
 const ROTATE_SPEED = 4
 const ACCEL = 150

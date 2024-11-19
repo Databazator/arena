@@ -79,7 +79,7 @@ func build_level():
 
 	var count = 4 + level
 	##########################################
-	count = 1
+	#count = 1
 	##########################################
 	var extent1 = extent.grow(-100)
 	var key_points = [extent1.position, Vector2(extent1.position.x, extent1.end.y),
@@ -110,7 +110,10 @@ func build_level():
 	avoid.append($ship)
 
 	await get_tree().physics_frame
-
+	
+	#######################################
+	#count = 10
+	#######################################
 	for i in range(count):
 		var gem = null
 		while true:
