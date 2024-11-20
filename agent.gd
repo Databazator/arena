@@ -6,6 +6,10 @@ const Ship = preload("res://ship.gd")
 @onready var debug_vec: Line2D = ship.get_node('../debug_vec')
 @onready var debug_vec2: Line2D = ship.get_node('../debug_vec2')
 
+@onready var debug_objs: Node2D = ship.get_node('../debug_objs')
+@onready var DebugRect = preload('res://debug_rect.tscn')
+@onready var DebugLabel = preload('res://debug_label.tscn')
+
 @onready var WAYPOINT_REACHED_DIST_MARGIN = 50
 
 var THRUST_ANGLE_MARGIN = deg_to_rad(8)
@@ -16,6 +20,8 @@ var thrust:bool = false
 var current_velocity
 
 var corrected_rotation_vector:Vector2 = Vector2.ZERO
+
+var astar_planner: Util.AStarGraph = Util.AStarGraph.new()
 
 var waypoint_pos:Vector2
 var waypoint_set:bool = false
@@ -36,7 +42,7 @@ func action(_walls: Array[PackedVector2Array], _gems: Array[Vector2],
 	show_debug_path()
 	
 	var current_ship_polygon = Util.get_closest_polygon(ship.position, _polygons)
-	var gem_polygons = Util.get_points_polygon_clusters(_gems, _polygons)
+	var gem_polygons = Util.get_points_clusters_for_polygons(_gems, _polygons)
 	if !waypoint_set and !stop:
 		waypoint_set = true
 		if gem_polygons.has(current_ship_polygon):
@@ -63,8 +69,21 @@ func action(_walls: Array[PackedVector2Array], _gems: Array[Vector2],
 	
 	ticks += 1 
 	if ticks % 180 == 0:
-		#print_rich("[rainbow freq=0.2 sat=0.8 val=0.8][wave amp=20.0 freq=-5.0 connected=0]" + str("akjahkjhasjhfajsfjkasfjkahskfjhasjkfhasjkfhaksjakhfjk") + "[/wave][/rainbow]")
-
+		var ship_neighbours = _neighbors[current_ship_polygon]
+		
+		var test_edges: Array[Vector2] = []
+		for i in range(ship_neighbours.size()):
+			var edge: Array[Vector2] = Util.get_neigbouring_polygon_edge(_polygons[current_ship_polygon], _polygons[ship_neighbours[i]])
+			var edge_centre: Vector2 = Util.get_edge_centre(edge[0], edge[1])
+			test_edges.append(edge_centre)
+			
+		clear_debug_objs()
+		draw_debug_points(test_edges)
+		draw_debug_poly_indices(_polygons)
+		if ticks > 200:
+			var search_res = astar_planner.Search(ship.position, [current_ship_polygon], _polygons, _gems, _neighbors)
+			print_rich("[rainbow freq=0.2 sat=0.8 val=0.8][wave amp=20.0 freq=-5.0 connected=0]" + str(search_res) + "[/wave][/rainbow]")
+		
 		pass
 		#print(gem_polygons)
 		#print("ship: " + str(current_ship_polygon))
@@ -88,6 +107,25 @@ func show_debug_path():
 	debug_vec2.add_point(ship.position)
 	debug_vec2.add_point(ship.position + corrected_rotation_vector)
 
+func clear_debug_objs():
+	var children: Array[Node] = debug_objs.get_children()
+	for i in range(children.size()):
+		children[i].queue_free()
+	
+func draw_debug_points(points: Array[Vector2]):
+	for i in range(points.size()):
+		var point: ColorRect = DebugRect.instantiate()
+		point.position = points[i] - point.size/2.0
+		debug_objs.add_child(point)
+	return
+	
+func draw_debug_poly_indices(polygons: Array[PackedVector2Array]):
+	for i in range(polygons.size()):
+		var centre = Util.get_polygon_centeroid(polygons[i])
+		var label: Label = DebugLabel.instantiate()
+		label.position = centre - label.size/2.0
+		label.text = str(i)
+		debug_objs.add_child(label)
 # Called every time the agent has bounced off a wall.
 func bounce():
 	return

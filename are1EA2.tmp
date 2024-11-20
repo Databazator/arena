@@ -99,8 +99,6 @@ z_index = 1
 width = 3.0
 default_color = Color(4.81308e-08, 0.600001, 0.246864, 1)
 
-[node name="debug_objs" type="Node2D" parent="."]
-
 [node name="ship" type="CharacterBody2D" parent="."]
 editor_description = "This is the ship."
 position = Vector2(700, 450)

@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://bxn4geh1d0y5l"]
+
+[node name="debug_label" type="Label"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -9.5
+offset_top = -11.5
+offset_right = 9.5
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset = Vector2(20, 11.5)
+text = "11"
+horizontal_alignment = 1
+vertical_alignment = 1
