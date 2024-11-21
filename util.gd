@@ -90,21 +90,34 @@ static func get_neigbouring_polygon_edge(poly1: PackedVector2Array, poly2: Packe
 static func get_edge_centre(a: Vector2, b: Vector2) -> Vector2 :
 	return Vector2((a.x + b.x)/2.0, (a.y + b.y)/2.0)
 
+class PathNode:
+	var Point: Vector2
+	 # these two other properties are unneccesary, but I don't feel like calculatuing them again later so I just pass them along to speed things up a tad
+	var IsEdge: bool               
+	var Edge: PackedVector2Array
+	
+	func _init(point: Vector2, isEdge: bool = false, edge: PackedVector2Array = []):
+		Point = point
+		IsEdge = isEdge
+		Edge = edge
+	
 class FringeNode:
 	var Point: Vector2
 	var Parent: FringeNode
 	var PolygonIndex: Array[int]
 	var IsPolyEdge: bool
+	var PolyEdgePoints: PackedVector2Array
 	var Cost: float
 	var Depth: int
 	
-	func _init(point: Vector2, parent: FringeNode, polygonIndex: Array[int], isPolyEdge: bool, cost: float, depth: int) -> void:
+	func _init(point: Vector2, parent: FringeNode, polygonIndex: Array[int], isPolyEdge: bool, cost: float, depth: int, polyEdge: PackedVector2Array = []) -> void:
 		Point = point
 		Parent = parent
 		PolygonIndex = polygonIndex
 		IsPolyEdge = isPolyEdge
 		Cost = cost
 		Depth = depth
+		PolyEdgePoints = polyEdge
 	
 class AStarGraph:
 	var StartPos: Vector2
@@ -160,18 +173,18 @@ class AStarGraph:
 		
 		for i in range(target_gems.size()):
 			var gem_pos = Gems[target_gems[i]]
-			res_targets.append([gem_pos, false, []])
+			res_targets.append([gem_pos, false, [], []])
 			
 		for i in range(current_poly.size()):
 			var neighbours = target_neighbours[current_poly[i]]
 			for j in range(neighbours.size()):
-				var poly_edge = Util.get_neigbouring_polygon_edge(Polygons[current_poly[i]], Polygons[neighbours[j]])
-				var edge_centre = Util.get_edge_centre(poly_edge[0], poly_edge[1])
-				res_targets.append([edge_centre, true, [current_poly[i], neighbours[j]]])
+				var poly_edge: Array[Vector2] = Util.get_neigbouring_polygon_edge(Polygons[current_poly[i]], Polygons[neighbours[j]])
+				var edge_centre : Vector2 = Util.get_edge_centre(poly_edge[0], poly_edge[1])
+				res_targets.append([edge_centre, true, [current_poly[i], neighbours[j]], poly_edge])
 	
 		return res_targets
 	
-	func Search(startPos: Vector2, startPolyIndex: Array[int], polygons: Array[PackedVector2Array], gems: Array[Vector2], neighbours: Array[Array]) : 
+	func Search(startPos: Vector2, startPolyIndex: Array[int], polygons: Array[PackedVector2Array], gems: Array[Vector2], neighbours: Array[Array]) -> Array[PathNode]: 
 		StartPos = startPos
 		Polygons = polygons
 		Gems = gems
@@ -203,6 +216,7 @@ class AStarGraph:
 				var new_is_edge = new_target[1]
 				var new_edge_polys: Array[int]
 				new_edge_polys.assign(new_target[2])
+				var edge_points: PackedVector2Array = PackedVector2Array(new_target[3])
 				
 				var new_cost = current_depth + Cost(current_pos, new_pos) + Heuristic(new_pos)
 				if not visited.has(new_pos) or visited[new_pos] > new_cost:
@@ -210,14 +224,19 @@ class AStarGraph:
 					var new_fringe_node_poly: Array[int]
 					new_fringe_node_poly.assign([Util.get_closest_polygon(new_pos, Polygons)]) if not new_is_edge else new_fringe_node_poly.assign(new_edge_polys)
 					var new_fringe_node = FringeNode.new(new_pos, current_node, 
-					new_fringe_node_poly, new_is_edge, new_cost, current_depth + Cost(current_pos, new_pos))
+					new_fringe_node_poly, new_is_edge, new_cost, current_depth + Cost(current_pos, new_pos), edge_points)
 					Fringe.append(new_fringe_node)
 		
-		if GoalNode != null:
-			print("Found Goal: " + str(GoalNode.Point))
+		if GoalNode == null:
+			return [PathNode.new(startPos)]
 		else:
-			#print("Goal node not found")
-			pass
-		return GoalNode
-	
-	
+			var res_path: Array[PathNode] = []
+			var curr_node = GoalNode
+			
+			while curr_node.Parent != null:
+				res_path.append(PathNode.new(curr_node.Point, curr_node.IsPolyEdge, curr_node.PolyEdgePoints))
+				curr_node = curr_node.Parent
+				
+			res_path.append(PathNode.new(curr_node.Point, curr_node.IsPolyEdge, curr_node.PolyEdgePoints))
+			res_path.reverse()
+			return res_path
