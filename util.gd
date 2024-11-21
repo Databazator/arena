@@ -24,9 +24,13 @@ static func distance_segment_to_polygon(p: Vector2, q: Vector2, polygon: PackedV
 		var a = Geometry2D.get_closest_points_between_segments(p, q, polygon[i], polygon[i + 1])
 		d = minf(d, a[0].distance_to(a[1]))
 	return d
-	
-static func get_random_point(r: Rect2):
-	return
+
+static func two_line_intersection(edge_a, edge_b, path_a, path_b) -> Array:
+	var points = Geometry2D.get_closest_points_between_segments(edge_a,edge_b,path_a,path_b)
+	var res = []
+	res.append(true if points[0].distance_to(points[1]) <= 5 else false)
+	res.append(points[0])
+	return res
 
 static func get_polygon_centeroid(polygon:PackedVector2Array):
 	var gx = 0
@@ -89,6 +93,33 @@ static func get_neigbouring_polygon_edge(poly1: PackedVector2Array, poly2: Packe
 
 static func get_edge_centre(a: Vector2, b: Vector2) -> Vector2 :
 	return Vector2((a.x + b.x)/2.0, (a.y + b.y)/2.0)
+
+static func funnel_iter(points: Array[PathNode]) -> Array[PathNode]:
+	#just in casies
+	points = points.duplicate(true)
+	#points is an array of PathNodes containing vector2 point, bool that signifies if this node is on polygon edge and a packed array of the edge 
+	#[{point:vec2, isEdge:bool, edge:packedVec2Arr},{point2:vec2, isEdge2:bool, edge2:packedVec2Arr}]
+	var res_points: Array[PathNode]= []
+	res_points.append(points[0])
+	var last_non_skipped_index = 0
+	
+	for i in range(1, points.size() - 1): # skip first and last point
+		var curr_point = points[i]
+		var curr_point_edge: PackedVector2Array = curr_point.Edge
+		if not curr_point.IsEdge: #cant do anything about this one at this stage
+			res_points.append(points[i])
+		else:
+			var path_start: Vector2 = points[last_non_skipped_index].Point
+			var path_end: Vector2 = points[i + 1].Point
+			var intersection = two_line_intersection(curr_point_edge[0], curr_point_edge[1], path_start, path_end)
+			if not intersection[0]: # no intersection, choose point closest to a 'would-be' interesection point as new
+				var new_point_pos = intersection[1]
+				var new_point = PathNode.new(new_point_pos, true, curr_point_edge)
+				res_points.append(new_point)
+				points[i] = new_point
+				last_non_skipped_index = i
+	res_points.append(points[-1])
+	return res_points
 
 class PathNode:
 	var Point: Vector2
@@ -240,3 +271,4 @@ class AStarGraph:
 			res_path.append(PathNode.new(curr_node.Point, curr_node.IsPolyEdge, curr_node.PolyEdgePoints))
 			res_path.reverse()
 			return res_path
+			

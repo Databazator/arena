@@ -10,7 +10,9 @@ const Ship = preload("res://ship.gd")
 @onready var DebugRect = preload('res://debug_rect.tscn')
 @onready var DebugLabel = preload('res://debug_label.tscn')
 
-@onready var WAYPOINT_REACHED_DIST_MARGIN = 50
+@onready var WAYPOINT_REACHED_DIST_MARGIN = 30
+
+
 
 const THRUST_ANGLE_MARGIN = deg_to_rad(8)
 const SPEED_STOP_MARGIN = 5
@@ -42,6 +44,16 @@ var replan: bool = false
 var last_bounce_time: int = 0
 const BOUNCE_REPLAN_THRESHOLD: int = 250
 
+enum WaypointType {PASSTHROUGH, ARRIVE}
+
+class Waypoint:
+	var Position: Vector2
+	var Type: WaypointType
+	
+	func _init(position, waypointType: WaypointType = WaypointType.ARRIVE) -> void:
+		Position = position
+		Type = waypointType
+
 # This method is called on every tick to choose an action.  See README.md
 # for a detailed description of its arguments and return value.
 func action(_walls: Array[PackedVector2Array], _gems: Array[Vector2], 
@@ -53,14 +65,7 @@ func action(_walls: Array[PackedVector2Array], _gems: Array[Vector2],
 	show_debug_velocity_vectors()
 	
 	if replan or not path_set:
-		replan = false
-		current_ship_polygon = Util.get_closest_polygon(ship.position, _polygons)
-		var path_plan: Array[Util.PathNode] = astar_planner.Search(ship.position, [current_ship_polygon], _polygons, _gems, _neighbors)
-		print_rich("[rainbow freq=0.2 sat=0.8 val=0.8][wave amp=20.0 freq=-5.0 connected=0]" + str(path) + "[/wave][/rainbow]")
-		if path_plan.size() == 1 and path_plan[0].Point == ship.position:
-			print("No Goal Found")
-		path_set = true
-		path = path_plan
+		do_plan(_polygons, _gems, _neighbors)
 	
 	temp_closest_nav(_polygons, _gems, _neighbors)
 	
@@ -83,38 +88,34 @@ func action(_walls: Array[PackedVector2Array], _gems: Array[Vector2],
 	
 	return [spin, thrust, true]
 	
-func temp_closest_nav(_polygons, _gems, _neighbours):
-	var current_ship_polygon = Util.get_closest_polygon(ship.position, _polygons)
-	var gem_polygons = Util.get_points_clusters_for_polygons(_gems, _polygons)
-	if !waypoint_set and !stop:
+func do_plan(polygons, gems, neighbours):
+	slowing_phase = false
+	
+	replan = false
+	current_ship_polygon = Util.get_closest_polygon(ship.position, polygons)
+	var path_plan: Array[Util.PathNode] = astar_planner.Search(ship.position, [current_ship_polygon], polygons, gems, neighbours)
+	print_rich("[rainbow freq=0.2 sat=0.8 val=0.8][wave amp=20.0 freq=-5.0 connected=0]" + "path found: segments: " + str(path.size()) + "[/wave][/rainbow]")
+	
+	print("path len: " + str(path_plan.size()))
+	# funnel path, iterative
+	for i in range(path_plan.size()):
+		print(str(i) + " iter path len: " + str(path_plan.size()))
+		path_plan = Util.funnel_iter(path_plan)
+	
+	if path_plan.size() == 1 and path_plan[0].Point == ship.position:
+		print("No Goal Found")
+	else:
+		path_set = true
+		path = path_plan
+		path_target_index = 1
+		waypoint_pos = path[path_target_index].Point
 		waypoint_set = true
-		if gem_polygons.has(current_ship_polygon):
-			var close_gems_indices: Array = gem_polygons[current_ship_polygon]
-			if close_gems_indices.size() > 1:
-				var close_gems: Array[Vector2] = []
-				for i in range(close_gems_indices.size()):
-					close_gems.append(_gems[close_gems_indices[i]])
-					
-				var closest_gem_index = Util.get_closest_point(ship.position, close_gems)
-				waypoint_pos = close_gems[closest_gem_index]
-				print("waypoint: closest: " + str(closest_gem_index) + " from size: " + str(close_gems_indices))
-			else:
-				waypoint_pos = _gems[close_gems_indices[0]]
-				print("waypoint: single gem: " + str(waypoint_pos))
-		else:
-			var ship_neighbours = _neighbours[current_ship_polygon]
-			var next_polygon_index = randi_range(0, ship_neighbours.size() - 1)
-			for i in range(ship_neighbours.size()):
-				if gem_polygons.has(ship_neighbours[i]):
-					next_polygon_index = i
-			waypoint_pos = Util.get_polygon_centeroid(_polygons[ship_neighbours[next_polygon_index]])
-			print("waypoint: new poly: " + str(next_polygon_index))
-			
+
 func show_debug_path():
 	if path_set:
 		debug_path.clear_points()
 		debug_path.add_point(ship.position)
-		for i in range(1, path.size()):
+		for i in range(path_target_index, path.size()):
 			debug_path.add_point(path[i].Point)
 
 func show_debug_velocity_vectors():
@@ -145,6 +146,7 @@ func draw_debug_poly_indices(polygons: Array[PackedVector2Array]):
 		label.position = centre - label.size/2.0
 		label.text = str(i)
 		debug_objs.add_child(label)
+	
 # Called every time the agent has bounced off a wall.
 func bounce():
 	var curr_time = Time.get_ticks_msec()
@@ -158,7 +160,13 @@ func gem_collected():
 	
 func waypoint_reached():
 	if path_set:
-		pass
+		path_target_index += 1
+		if path.size() <= path_target_index:
+			path_set = false
+			replan = true
+			waypoint_set = false
+		else:
+			waypoint_pos = path[path_target_index].Point
 	else:
 		waypoint_set = false
 	slowing_phase = false
@@ -183,7 +191,7 @@ func navigate_to_waypoint():
 		if waypoint_set:
 			slowing_phase = true
 	
-	if slowing_phase and abs(velocity_waypoint_angle) > deg_to_rad(45):
+	if slowing_phase and (abs(velocity_waypoint_angle) > deg_to_rad(45) or current_velocity <= 0.5 * dist_to_waypoint):
 		slowing_phase = false
 		
 	do_rotate()
@@ -225,5 +233,33 @@ func do_thrust():
 			thrust = true
 			return
 	thrust = false
-	return
+	return	
+	
+func temp_closest_nav(_polygons, _gems, _neighbours):
+	var current_ship_polygon = Util.get_closest_polygon(ship.position, _polygons)
+	var gem_polygons = Util.get_points_clusters_for_polygons(_gems, _polygons)
+	if !waypoint_set and !stop:
+		waypoint_set = true
+		if gem_polygons.has(current_ship_polygon):
+			var close_gems_indices: Array = gem_polygons[current_ship_polygon]
+			if close_gems_indices.size() > 1:
+				var close_gems: Array[Vector2] = []
+				for i in range(close_gems_indices.size()):
+					close_gems.append(_gems[close_gems_indices[i]])
+					
+				var closest_gem_index = Util.get_closest_point(ship.position, close_gems)
+				waypoint_pos = close_gems[closest_gem_index]
+				print("waypoint: closest: " + str(closest_gem_index) + " from size: " + str(close_gems_indices))
+			else:
+				waypoint_pos = _gems[close_gems_indices[0]]
+				print("waypoint: single gem: " + str(waypoint_pos))
+		else:
+			var ship_neighbours = _neighbours[current_ship_polygon]
+			var next_polygon_index = randi_range(0, ship_neighbours.size() - 1)
+			for i in range(ship_neighbours.size()):
+				if gem_polygons.has(ship_neighbours[i]):
+					next_polygon_index = i
+			waypoint_pos = Util.get_polygon_centeroid(_polygons[ship_neighbours[next_polygon_index]])
+			print("waypoint: new poly: " + str(next_polygon_index))
+			
 	
