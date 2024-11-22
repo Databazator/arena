@@ -3,6 +3,9 @@ const Ship = preload("res://ship.gd")
 @onready var ship : Ship = get_parent()
 @onready var debug_path: Line2D = ship.get_node('../debug_path')
 
+@export var show_debug_vectors = true
+@export var show_debug_navmesh = false
+
 var velocity_vector_debug: Line2D
 var rotation_target_debug: Line2D
 var debug_objs: Node2D
@@ -11,6 +14,7 @@ const WAYPOINT_NODE_REACHED_DIST_MARGIN = 60
 const WAYPOINT_GEM_REACHED_DIST_MARGIN = 30
 const WAYPOINT_PASSTHROUGH_ANGLE_MARGIN = deg_to_rad(30)
 const WAYPOINT_SKIP_PASS_NODE_ANGLE_MARGIN = deg_to_rad(5)
+const WAYPOINTS_AHEAD_TO_FIRE = 3
 
 const THRUST_ANGLE_MARGIN = deg_to_rad(8)
 const SPEED_STOP_MARGIN = 5
@@ -18,6 +22,7 @@ const SPEED_STOP_MARGIN = 5
 var ticks = 0
 var spin:int = 0
 var thrust:bool = false
+var fire_missile: bool = false
 var current_velocity
 
 var corrected_rotation_vector:Vector2 = Vector2.ZERO
@@ -29,11 +34,8 @@ var current_ship_polygon: int
 var waypoint_pos:Vector2
 var waypoint_set:bool = false
 
-#var velocity_target_angle: float
 var angle_to_rot_target: float
 var slowing_phase: bool = false
-
-var stop: bool = false
 
 var waypoints: Array[Waypoint]
 var current_waypoint: Waypoint
@@ -43,6 +45,7 @@ var replan: bool = false
 
 var last_bounce_time: int = 0
 const BOUNCE_REPLAN_THRESHOLD: int = 500
+var win_printed: bool = false
 
 enum WaypointType {PASSTHROUGH, ARRIVE}
 
@@ -55,23 +58,7 @@ class Waypoint:
 		Type = waypointType
 		
 func _ready() -> void:
-	var arena_node: Node2D = get_node("/root/arena")
-	
-	velocity_vector_debug = Line2D.new()
-	velocity_vector_debug.default_color = Color.RED
-	velocity_vector_debug.width = 3
-	velocity_vector_debug.z_index = 2
-	arena_node.add_child.call_deferred(velocity_vector_debug)
-	rotation_target_debug = Line2D.new()
-	rotation_target_debug.default_color = Color.WEB_GREEN
-	rotation_target_debug.width = 3
-	rotation_target_debug.z_index = 1
-	arena_node.add_child.call_deferred(rotation_target_debug)
-	
-	debug_objs = Node2D.new()	
-	arena_node.add_child.call_deferred(debug_objs)
-	
-	pass
+	init_debug_objs()
 # This method is called on every tick to choose an action.  See README.md
 # for a detailed description of its arguments and return value.
 func action(_walls: Array[PackedVector2Array], _gems: Array[Vector2], 
@@ -80,18 +67,18 @@ func action(_walls: Array[PackedVector2Array], _gems: Array[Vector2],
 	thrust = false
 	
 	show_debug_path()
-	show_debug_velocity_vectors()
+	if show_debug_vectors:
+		show_debug_velocity_vectors()
 	
 	if ticks % 30 == 0: # ef it, just replan every now and then, seems to work way better
 		replan = true
+		win_debug()
 	
 	if replan or not waypoint_set:
 		do_plan(_polygons, _gems, _neighbors)
 	
-	#temp_closest_nav(_polygons, _gems, _neighbors)
-	
 	ticks += 1 
-	if ticks % 120 == 0:
+	if  ticks % 120 == 0 and show_debug_navmesh:
 		current_ship_polygon = Util.get_closest_polygon(ship.position, _polygons)
 		var ship_neighbours = _neighbors[current_ship_polygon]
 		
@@ -107,7 +94,7 @@ func action(_walls: Array[PackedVector2Array], _gems: Array[Vector2],
 
 	navigate_to_waypoint()
 	
-	return [spin, thrust, true]
+	return [spin, thrust, fire_missile]
 	
 func construct_waypoints(path: Array[Util.PathNode]) -> Array[Waypoint]:
 	var res_waypoints: Array[Waypoint] = []
@@ -162,7 +149,6 @@ func do_plan(polygons, gems, neighbours):
 		current_waypoint = waypoints[current_waypoint_index]
 		waypoint_pos = current_waypoint.Position
 		waypoint_set = true
-		print_rich("[rainbow freq=0.2 sat=0.8 val=0.8][wave amp=20.0 freq=-5.0 connected=0]" + "path found: waypoints: " + str(waypoints.size()) + "[/wave][/rainbow]")
 	
 # Called every time the agent has bounced off a wall.
 func bounce():
@@ -216,6 +202,7 @@ func navigate_to_waypoint():
 		
 	do_rotate()
 	do_thrust()
+	do_fire_missile()
 
 func do_rotate():
 	if not waypoint_set:
@@ -236,11 +223,10 @@ func do_rotate():
 		
 	var corrected_rotation_target = ship.position + corrected_rotation_vector
 	
-	angle_to_rot_target = ship.get_angle_to(corrected_rotation_target)
+	angle_to_rot_target = ship.get_angle_to(corrected_rotation_target)	
 	spin = 1 if angle_to_rot_target > 0 else -1
 	if abs(angle_to_rot_target) <= ship.ROTATE_SPEED/60.0:
 		spin = 0
-		
 
 func do_thrust():
 	thrust = false
@@ -257,6 +243,16 @@ func do_thrust():
 			if waypoint_set and ((dist_to_waypoint > current_velocity and angle_tgt_vel_vec < deg_to_rad(7)) or angle_tgt_vel_vec >= deg_to_rad(7)):
 				thrust = true
 	return
+	
+func do_fire_missile():
+	fire_missile = false
+	if ship.lasers == 0:
+		return
+	
+	if waypoints.size() - current_waypoint_index >= WAYPOINTS_AHEAD_TO_FIRE:
+		var angle_to_final = ship.get_angle_to(waypoints[-1].Position)
+		if abs(angle_to_final) <= THRUST_ANGLE_MARGIN:
+			fire_missile = true
 	
 func get_next_nonpass_waypoint() -> Waypoint:
 	if current_waypoint_index >= waypoints.size() - 1:
@@ -308,10 +304,35 @@ func draw_debug_points(points: Array[Vector2]):
 		debug_objs.add_child(point)
 	return
 	
+func init_debug_objs():
+	var arena_node: Node2D = ship.get_parent()
+	
+	velocity_vector_debug = Line2D.new()
+	velocity_vector_debug.default_color = Color.RED
+	velocity_vector_debug.width = 3
+	velocity_vector_debug.z_index = 2
+	arena_node.add_child.call_deferred(velocity_vector_debug)
+	rotation_target_debug = Line2D.new()
+	rotation_target_debug.default_color = Color.WEB_GREEN
+	rotation_target_debug.width = 3
+	rotation_target_debug.z_index = 1
+	arena_node.add_child.call_deferred(rotation_target_debug)
+	
+	debug_objs = Node2D.new()
+	arena_node.add_child.call_deferred(debug_objs)
+
+func win_debug():
+	if(ship.get_parent().score >= 300 and not win_printed):
+		print_victory_debug()
+		
+func print_victory_debug():
+	print_rich("[font_size=15][color=CRIMSON][shake rate=20.0 level=5 connected=1]" + "300!" + "[/shake][/color][/font_size][rainbow freq=0.2 sat=0.8 val=0.8][wave amp=20.0 freq=-5.0 connected=0]" + " YAAY! " + "[/wave][/rainbow] ")
+	win_printed = true
+	
 func temp_closest_nav(_polygons, _gems, _neighbours):
 	var current_ship_polygon = Util.get_closest_polygon(ship.position, _polygons)
 	var gem_polygons = Util.get_points_clusters_for_polygons(_gems, _polygons)
-	if !waypoint_set and !stop:
+	if !waypoint_set:
 		waypoint_set = true
 		if gem_polygons.has(current_ship_polygon):
 			var close_gems_indices: Array = gem_polygons[current_ship_polygon]

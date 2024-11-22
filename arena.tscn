@@ -2,16 +2,16 @@
 
 [ext_resource type="Script" path="res://arena.gd" id="1_1v0vr"]
 [ext_resource type="Script" path="res://ship.gd" id="1_cqiuf"]
-[ext_resource type="Texture2D" uid="uid://olkn0ghqig0t" path="res://images/character.png" id="1_p64oq"]
+[ext_resource type="Texture2D" uid="uid://c2evmt4uubq3s" path="res://images/character.png" id="1_p64oq"]
 [ext_resource type="Script" path="res://nav_region.gd" id="3_fxh1s"]
 [ext_resource type="PackedScene" uid="uid://bi0cmvb2q7pgx" path="res://wall.tscn" id="4_twsyb"]
-[ext_resource type="AudioStream" uid="uid://bnxwo5aamddgn" path="res://sounds/Fantasy_UI (6).wav" id="5_ahoe7"]
-[ext_resource type="Texture2D" uid="uid://drr6un1qaefgx" path="res://images/sparkle.png" id="5_pv7v0"]
-[ext_resource type="AudioStream" uid="uid://dgtkr7hpcfx46" path="res://sounds/Hammer2.wav" id="6_ehtxo"]
+[ext_resource type="AudioStream" uid="uid://b5cvafy8qh0u8" path="res://sounds/Fantasy_UI (6).wav" id="5_ahoe7"]
+[ext_resource type="Texture2D" uid="uid://c1tkuln72nrb7" path="res://images/sparkle.png" id="5_pv7v0"]
+[ext_resource type="AudioStream" uid="uid://nkioet5vw0q6" path="res://sounds/Hammer2.wav" id="6_ehtxo"]
 [ext_resource type="Script" path="res://agent.gd" id="7_iugb6"]
-[ext_resource type="AudioStream" uid="uid://gxcnfjgex67s" path="res://sounds/Glitch_13.wav" id="9_avenh"]
-[ext_resource type="AudioStream" uid="uid://t7sxaer2145x" path="res://sounds/Whoosh 3.wav" id="9_ogv0w"]
-[ext_resource type="AudioStream" uid="uid://b44acdk5q6q2m" path="res://sounds/Impact_2_Mid.wav" id="10_3iuv8"]
+[ext_resource type="AudioStream" uid="uid://c4ex8u2r36qgf" path="res://sounds/Glitch_13.wav" id="9_avenh"]
+[ext_resource type="AudioStream" uid="uid://hm7h8l7t8ese" path="res://sounds/Whoosh 3.wav" id="9_ogv0w"]
+[ext_resource type="AudioStream" uid="uid://cx2gnkhap00m0" path="res://sounds/Impact_2_Mid.wav" id="10_3iuv8"]
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_f85l1"]
 vertices = PackedVector2Array(1330, 830, 70.9375, 830, 70.0625, 105, 1330, 105)
