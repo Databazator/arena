@@ -101,7 +101,6 @@ static func funnel_iter(points: Array[PathNode]) -> Array[PathNode]:
 	#[{point:vec2, isEdge:bool, edge:packedVec2Arr},{point2:vec2, isEdge2:bool, edge2:packedVec2Arr}]
 	var res_points: Array[PathNode]= []
 	res_points.append(points[0])
-	var last_non_skipped_index = 0
 	
 	for i in range(1, points.size() - 1): # skip first and last point
 		var curr_point = points[i]
@@ -109,15 +108,13 @@ static func funnel_iter(points: Array[PathNode]) -> Array[PathNode]:
 		if not curr_point.IsEdge: #cant do anything about this one at this stage
 			res_points.append(points[i])
 		else:
-			var path_start: Vector2 = points[last_non_skipped_index].Point
+			var path_start: Vector2 = points[i - 1].Point
 			var path_end: Vector2 = points[i + 1].Point
 			var intersection = two_line_intersection(curr_point_edge[0], curr_point_edge[1], path_start, path_end)
-			if not intersection[0]: # no intersection, choose point closest to a 'would-be' interesection point as new
-				var new_point_pos = intersection[1]
-				var new_point = PathNode.new(new_point_pos, true, curr_point_edge)
-				res_points.append(new_point)
-				points[i] = new_point
-				last_non_skipped_index = i
+			var new_point_pos = intersection[1]
+			var new_point = PathNode.new(new_point_pos, true, curr_point_edge)
+			res_points.append(new_point)
+			points[i] = new_point
 	res_points.append(points[-1])
 	return res_points
 
@@ -232,8 +229,6 @@ class AStarGraph:
 			var current_node: FringeNode = BestFringeNode()
 			var current_pos = current_node.Point
 			var current_poly: Array[int] = current_node.PolygonIndex
-			var current_is_edge = current_node.IsPolyEdge
-			var current_cost = current_node.Cost
 			var current_depth = current_node.Depth
 			
 			if IsGoal(current_pos):
